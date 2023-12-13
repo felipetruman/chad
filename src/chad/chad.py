@@ -12,7 +12,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 # ----------------------------------------
 
 def get_filename(url, directory):
-	url = urllib.parse.urlparse(url)
+	url = urllib.parse.urlsplit(url)
 	base = os.path.join(directory, url.netloc)
 	if url.path:
 		base = os.path.join(directory, url.path.strip("/").rsplit("/", 1)[-1])
@@ -59,6 +59,10 @@ def write_file_silent(data, out):
 
 def jdump(data):
 	return json.dumps(data, indent = 4, ensure_ascii = False)
+
+def get_timestamp(text, color = None):
+	text = ("{0} - {1}").format(datetime.datetime.now().strftime("%H:%M:%S"), text)
+	termcolor.cprint(text, color) if color else print(text)
 
 # ----------------------------------------
 
@@ -118,7 +122,7 @@ class Chad:
 		return bool(self.__queries)
 
 	def validate_queries(self):
-		self.__get_timestamp("Validating Google Dorks...")
+		get_timestamp("Validating Google Dorks...")
 		print("Google only allows queries up to 32 words in length separated by space")
 		tmp = []
 		ignored = []
@@ -127,7 +131,7 @@ class Chad:
 				if self.__get_site(query):
 					ignored.append(query)
 					continue
-				query = ("site:{0}{1}({2})").format(self.__site, " ", query)
+				query = ("site:{0} ({1})").format(self.__site, query)
 			if len(query.split(" ")) > 32:
 				ignored.append(query)
 				continue
@@ -136,27 +140,23 @@ class Chad:
 			self.__print_ignored(ignored)
 		self.__queries = unique(tmp)
 
-	def __get_timestamp(self, text, color = None):
-		text = ("{0} - {1}").format(datetime.datetime.now().strftime("%H:%M:%S"), text)
-		termcolor.cprint(text, color) if color else print(text)
-
 	def __get_site(self, query):
 		return re.search(r"(?<!in|\-)site\:", query, self.__flags)
 
 	def __print_ignored(self, ignored, color = "cyan"):
-		print(("{0} QUERIES IGNORED:").format(len(ignored)))
+		print(("QUERIES IGNORED: {0}").format(len(ignored)))
 		for query in ignored:
 			termcolor.cprint(query, color) if color else print(query)
 
 	def run(self):
-		self.__get_timestamp("Searching Google Dorks...")
+		get_timestamp("Searching Google Dorks...")
 		print("Press CTRL + C to exit early - results will be saved")
 		results = []
+		count = 0
+		exit_program = False
 		try:
 			if not self.__sleep_on_start:
 				self.__wait()
-			count = 0
-			exit_program = False
 			for query in self.__queries:
 				count += 1
 				entry = {"query": query, "proxy": None, "urls": None}
@@ -169,13 +169,14 @@ class Chad:
 					"safe"  : "images"
 				}
 				while not exit_program:
-					remove_proxy = False
+					# --------------------
 					if self.__proxies.available():
 						if self.__proxies.round_robin():
 							self.__wait()
 						entry["proxy"] = self.__proxies.get_proxy()
 					elif count > 1:
 						self.__wait()
+					# --------------------
 					self.__status(count, entry["query"], entry["proxy"])
 					client = nagooglesearch.SearchClient(
 						tld         = "com",
@@ -188,29 +189,30 @@ class Chad:
 						verbose     = self.__debug
 					)
 					entry["urls"] = client.search()
-					errors = {
-						client.get_rate_limit(): "[ HTTP 429 Too Many Requests ]",
-						client.get_exception() : "[ Requests Exception ]"
-					}
-					for key in errors:
-						if key in entry["urls"]:
-							entry["urls"].pop(entry["urls"].index(key))
-							termcolor.cprint(errors[key], "yellow")
+					# --------------------
+					remove_proxy = False
+					for error in [client.get_rate_limit(), client.get_exception()]:
+						if error in entry["urls"]:
+							entry["urls"].pop(entry["urls"].index(error))
+							termcolor.cprint(error, "yellow")
 							if entry["proxy"]:
 								remove_proxy = True
 							else:
 								exit_program = True
+					# --------------------
 					if entry["urls"]:
 						if not self.__get_site(entry["query"]):
 							entry["urls"] = self.__check_blacklist(entry["urls"])
 						results.append(entry)
-					if not remove_proxy and not exit_program:
-						break
+					# --------------------
 					if remove_proxy:
 						self.__proxies.remove_proxy(entry["proxy"])
 						if not self.__proxies.available():
 							termcolor.cprint("All proxies has been exhausted!", "red")
 							exit_program = True
+					else:
+						break
+					# --------------------
 				if exit_program:
 					break
 		except KeyboardInterrupt:
@@ -229,7 +231,7 @@ class Chad:
 		text = ("QUERY {0}/{1}: {2}").format(count, len(self.__queries), query)
 		if proxy:
 			text = ("{0} | PROXY: {1}").format(text, proxy)
-		self.__get_timestamp(text, color)
+		get_timestamp(text, color)
 
 	def __get_headers(self):
 		return {
@@ -252,11 +254,10 @@ class Chad:
 		return tmp
 
 	def download_files(self, results, directory):
-		self.__get_timestamp("Downloading files... Proxies will be ignored...")
+		get_timestamp("Downloading files... Proxies will be ignored...")
 		results = self.__get_urls(results)
-		count = 0
-		total = len(results)
-		self.__progress(count, total)
+		progress = Progress(len(results))
+		progress.show()
 		with concurrent.futures.ThreadPoolExecutor(max_workers = self.__threads) as executor:
 			subprocesses = []
 			for url in results:
@@ -265,8 +266,7 @@ class Chad:
 				result = subprocess.result()
 				if result["data"]:
 					write_file_silent(result["data"], get_filename(result["url"], directory))
-				count += 1
-				self.__progress(count, total)
+				progress.show()
 
 	def __get_urls(self, results):
 		tmp = []
@@ -275,9 +275,6 @@ class Chad:
 		tmp = unique(tmp)
 		random.shuffle(tmp)
 		return tmp
-
-	def __progress(self, count, total):
-		print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = "\n" if count == total else "\r")
 
 	def __download(self, url):
 		tmp = {"url": url, "data": None}
@@ -292,7 +289,7 @@ class Chad:
 			if self.__debug:
 				print(("ERROR: {0}").format(ex))
 		finally:
-			if response is not None:
+			if response:
 				response.close()
 			session.close()
 		return tmp
@@ -330,11 +327,27 @@ class Proxies:
 		return proxy
 
 	def remove_proxy(self, proxy):
-		self.__proxies.pop(self.__proxies.index(proxy))
-		self.__index -= 1
-		if self.__index < 0:
-			self.__index = 0
-		print(("Removing '{0}' due to an error or rate limiting | Proxies left: {1}").format(proxy, self.count()))
+		if proxy in self.__proxies:
+			self.__proxies.pop(self.__proxies.index(proxy))
+			self.__index -= 1
+			if self.__index < 0:
+				self.__index = 0
+			print(("Removing '{0}' due to an error or rate limiting | Proxies left: {1}").format(proxy, self.count()))
+
+# ----------------------------------------
+
+class Progress:
+
+	def __init__(
+		self,
+		total
+	):
+		self.__total = total
+		self.__count = 0
+
+	def __show(self):
+		print(("Progress: {0}/{1} | {2:.2f}%").format(self.__count, self.__total, (self.__count / self.__total) * 100), end = "\n" if self.__count == self.__total else "\r")
+		self.__count += 1
 
 # ----------------------------------------
 
@@ -365,7 +378,7 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Chad v4.9 ( github.com/ivan-sincek/chad )")
+		print("Chad v5.0 ( github.com/ivan-sincek/chad )")
 		print("")
 		print("Usage:   chad -q queries     [-s site         ] [-a agents         ] [-p proxies    ] [-o out         ]")
 		print("Example: chad -q queries.txt [-s *.example.com] [-a user_agents.txt] [-p proxies.txt] [-o results.json]")
@@ -639,7 +652,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                                Chad v4.9                                #")
+		print("#                                Chad v5.0                                #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Search Google Dorks like Chad.                                          #")

@@ -8,6 +8,10 @@ Tested on Kali Linux v2023.4 (64-bit).
 
 Made for educational purposes. I hope it will help!
 
+Future plans:
+
+* find `jq` alternative so that the whole package can be cross-platform.
+
 ## Table of Contents
 
 * [How to Install](#how-to-install)
@@ -44,7 +48,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/google_chad-4.9-py3-none-any.whl
+python3 -m pip install dist/google_chad-5.0-py3-none-any.whl
 
 playwright install chromium
 ```
@@ -242,7 +246,7 @@ Additionally, to avoid hitting e.g. Instagram's rate limit with Chad Extractor, 
 ## Usage
 
 ```fundamental
-Chad v4.9 ( github.com/ivan-sincek/chad )
+Chad v5.0 ( github.com/ivan-sincek/chad )
 
 Usage:   chad -q queries     [-s site         ] [-a agents         ] [-p proxies    ] [-o out         ]
 Example: chad -q queries.txt [-s *.example.com] [-a user_agents.txt] [-p proxies.txt] [-o results.json]
@@ -309,7 +313,7 @@ DEBUG
 ```
 
 ```fundamental
-Chad Extractor v4.9 ( github.com/ivan-sincek/chad )
+Chad Extractor v5.0 ( github.com/ivan-sincek/chad )
 
 Usage:   chad-extractor -t template      -res results -o out                 [-th threads] [-r retries] [-w wait] [-a agents         ]
 Example: chad-extractor -t template.json -res results -o results_report.json [-th 10     ] [-r 5      ] [-w 10  ] [-a user_agents.txt]

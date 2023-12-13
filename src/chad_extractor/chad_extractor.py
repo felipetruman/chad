@@ -2,7 +2,7 @@
 
 import datetime, time, sys, os, json, jq, regex as re, random, threading, concurrent.futures, subprocess, asyncio, signal
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
-from playwright._impl._api_types import Error as PlaywrightError
+# from playwright._impl._api_types import Error as PlaywrightError
 from nagooglesearch import nagooglesearch
 
 start = datetime.datetime.now()
@@ -225,7 +225,7 @@ class ChadExtractor:
 
 	def __interrupt(self, signum, frame):
 		self.__close = True
-		self.__print_msg("Exiting. Please wait for a clean exit...")
+		self.__print_msg("Please wait for a clean exit...")
 
 	def __split_results(self):
 		if self.__threads > 1:
@@ -247,7 +247,7 @@ class ChadExtractor:
 			pw = await async_playwright().start()
 			browser = await pw.chromium.launch(
 				headless      = True,
-				handle_sigint = False,
+				handle_sigint = False, # do not terminate the browser on CTRL + C
 				proxy         = self.__proxy
 			)
 			context = await self.__set_context(browser)
@@ -286,7 +286,7 @@ class ChadExtractor:
 					await context.clear_cookies() # anti-bot evasion 3
 				if self.__close:
 					break
-		except PlaywrightError as ex:
+		except Exception as ex:
 			self.__print_ex(ex)
 		finally:
 			if context:
@@ -335,7 +335,7 @@ class ChadExtractor:
 			self.__print_debug(response.status, url)
 		except PlaywrightTimeoutError:
 			pass
-		except PlaywrightError as ex: # break and fallback in case of request timeout, invalid domain, or file download
+		except Exception as ex: # break and fallback in case of request timeout, invalid domain, or file download
 			self.__print_ex(ex)
 			tmp["error"] = True
 		finally:
@@ -358,7 +358,7 @@ class ChadExtractor:
 			self.__print_debug(response.status, url)
 		except PlaywrightTimeoutError:
 			pass
-		except PlaywrightError as ex: # break in case of request timeout or invalid domain
+		except Exception as ex: # break in case of request timeout or invalid domain
 			self.__print_ex(ex)
 			tmp["error"] = True
 		return tmp
@@ -463,7 +463,7 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Chad Extractor v4.9 ( github.com/ivan-sincek/chad )")
+		print("Chad Extractor v5.0 ( github.com/ivan-sincek/chad )")
 		print("")
 		print("Usage:   chad-extractor -t template      -res results -o out                 [-th threads] [-r retries] [-w wait] [-a agents         ]")
 		print("Example: chad-extractor -t template.json -res results -o results_report.json [-th 10     ] [-r 5      ] [-w 10  ] [-a user_agents.txt]")
@@ -698,7 +698,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                           Chad Extractor v4.9                           #")
+		print("#                           Chad Extractor v5.0                           #")
 		print("#                                   by Ivan Sincek                        #")
 		print("#                                                                         #")
 		print("# Extract and validate data from Chad results.                            #")
